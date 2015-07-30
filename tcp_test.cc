@@ -7,7 +7,7 @@
 
 #include <string>
 
-const char* local_addr = "127.0.0.1:1393";
+const char* local_addr = "216.165.108.106:1393";
 
 bool start_server(int n_rounds)
 {
