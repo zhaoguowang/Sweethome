@@ -114,7 +114,7 @@ bool start_client(int n_rounds, int work_load)
     int ws = ::write(sock, &x, 1);
     int rs = ::read(sock, &x, 1);
 
-    fprintf(stderr, "ws %d rs %d\n", ws, rs);
+    // fprintf(stderr, "ws %d rs %d\n", ws, rs);
 
     printf("======================================== [Client] Profile Data ==========================================\n");
     printf("[Client] total time (ms) %f\n", Time::cycles_to_ms(total_cycles));
