@@ -16,7 +16,7 @@
 
 class Time {
 
-#define CPU_FREQ 2294.672 //MHZ
+#define CPU_FREQ 2294.672 //MHZ Geeker1
 
 public:
     static void now(time_t* seconds_since_epoch, timeval* timeofday);

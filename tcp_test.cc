@@ -7,9 +7,11 @@
 
 #include <string>
 
-const char* local_addr = "216.165.108.106:1393";
+// const char* local_addr = "216.165.108.106:1393";
+const char* local_addr = "127.0.0.1:1393";
 
-bool start_server(int n_rounds)
+
+bool start_server(int n_rounds, int work_load)
 {
     int ss = msg::socket_utils::tcp_listen(local_addr);
     printf("[Server] Listen On Sock %d\n", ss);
@@ -18,15 +20,15 @@ bool start_server(int n_rounds)
     socklen_t so_addrlen = 0;
     
     int clnt = ::accept(ss, &so_addr, &so_addrlen);
+
+    char *data = new char[work_load];
     printf("[Server] Connection Sock %d\n", clnt);
 
     while(n_rounds > 0) {
 
-        char b = 'y';
-
-        ::read(clnt, &b, 1);
+        ::read(clnt, data, work_load);
         
-        ::write(clnt, &b, 1);
+        ::write(clnt, data, work_load);
 
         n_rounds--;
     }
@@ -38,7 +40,7 @@ bool start_server(int n_rounds)
 
 
 
-bool start_client(int n_rounds)
+bool start_client(int n_rounds, int work_load)
 {
     int sock = 0;
     do {
@@ -54,20 +56,19 @@ bool start_client(int n_rounds)
     uint64_t start = Time::read_tsc();
 
     int r = n_rounds;
+    char *data = new char[work_load];
 
     while(r > 0) {
-
-        char b = 'x';
         
         uint64_t w_start = Time::read_tsc();
 
-        ::write(sock, &b, 1);
+        ::write(sock, data, work_load);
 
         write_cycles += Time::read_tsc() - w_start;
 
         uint64_t r_start = Time::read_tsc();
 
-        ::read(sock, &b, 1);
+        ::read(sock, data, work_load);
 
         read_cycles += Time::read_tsc() - r_start;
 
@@ -87,8 +88,9 @@ bool start_client(int n_rounds)
     return true;
 }
 
-void do_tcp_test(int n_rounds)
+void do_tcp_test(int n_rounds, int work_load)
 {
+    fprintf(stderr, "==================== TCP Test Rounds [%d] WorkLoads [%d]======================\n", n_rounds, work_load);
     pid_t pid = fork();
 
     if(pid < 0) {
@@ -97,9 +99,9 @@ void do_tcp_test(int n_rounds)
     }
 
     if(pid == 0) {
-        start_server(n_rounds);
+        start_server(n_rounds, work_load);
     } else {
-        start_client(n_rounds);
+        start_client(n_rounds, work_load);
     }
 
 }
