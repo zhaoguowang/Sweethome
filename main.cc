@@ -50,7 +50,8 @@ int main(int argc, char* argv[]) {
             std::cout<<"rounds "<< n_round<<std::endl;
             break;
 
-            case 'w':
+            case 'w':   
+            std::cout<<"workload "<< optarg <<std::endl;
             workload  = atoi(optarg);    
             std::cout<<"workload "<< workload <<std::endl;
             break;

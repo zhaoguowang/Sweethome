@@ -7,8 +7,8 @@
 
 #include <string>
 
-// const char* local_addr = "216.165.108.106:1393";
-const char* local_addr = "127.0.0.1:1393";
+const char* local_addr = "216.165.108.106:1393";
+// const char* local_addr = "127.0.0.1:1393";
 
 
 bool start_server(int n_rounds, int work_load)
@@ -24,15 +24,47 @@ bool start_server(int n_rounds, int work_load)
     char *data = new char[work_load];
     printf("[Server] Connection Sock %d\n", clnt);
 
-    while(n_rounds > 0) {
+    uint64_t total_cycles = 0;
+    uint64_t write_cycles = 0;
+    uint64_t read_cycles = 0;
 
-        ::read(clnt, data, work_load);
+    uint64_t start = Time::read_tsc();
+
+    int r = n_rounds;
+
+    while(r > 0) {
+
+        uint64_t r_start = Time::read_tsc();
+
+        int rs = ::read(clnt, data, work_load);
         
-        ::write(clnt, data, work_load);
+        read_cycles += Time::read_tsc() - r_start;
 
-        n_rounds--;
+        uint64_t w_start = Time::read_tsc();
+
+        int ws = ::write(clnt, data, work_load);
+
+        // fprintf(stderr, "ws %d rs %d\n", ws, rs);
+
+        write_cycles += Time::read_tsc() - w_start;
+
+        r--;
     }
-    
+
+    total_cycles = Time::read_tsc() - start;
+
+    printf("======================================== [Server] Profile Data ==========================================\n");
+    printf("[Server] total time (ms) %f\n", Time::cycles_to_ms(total_cycles));
+    printf("[Server] per req time (ms) %f\n", Time::cycles_to_ms(total_cycles/n_rounds));
+    printf("[Server] recv time (ms) %f\n", Time::cycles_to_ms(read_cycles/n_rounds));
+    printf("[Server] send time (ms) %f\n", Time::cycles_to_ms(write_cycles/n_rounds));
+
+    //A barriar to wait for server finish
+    char y = 'y';
+    int rs = ::read(clnt, &y, 1);
+    int ws = ::write(clnt, &y, 1);
+    // fprintf(stderr, "ws %d rs %d\n", ws, rs);
+
     ::close(ss);
 
     return true;
@@ -62,13 +94,13 @@ bool start_client(int n_rounds, int work_load)
         
         uint64_t w_start = Time::read_tsc();
 
-        ::write(sock, data, work_load);
+        int ws = ::write(sock, data, work_load);
 
         write_cycles += Time::read_tsc() - w_start;
 
         uint64_t r_start = Time::read_tsc();
 
-        ::read(sock, data, work_load);
+        int rs = ::read(sock, data, work_load);
 
         read_cycles += Time::read_tsc() - r_start;
 
@@ -77,11 +109,18 @@ bool start_client(int n_rounds, int work_load)
 
     total_cycles = Time::read_tsc() - start;
 
+    //A barriar to wait for server finish
+    char x = 'x';
+    int ws = ::write(sock, &x, 1);
+    int rs = ::read(sock, &x, 1);
+
+    fprintf(stderr, "ws %d rs %d\n", ws, rs);
+
     printf("======================================== [Client] Profile Data ==========================================\n");
-    printf("total time (ms) %f\n", Time::cycles_to_ms(total_cycles));
-    printf("per req time (ms) %f\n", Time::cycles_to_ms(total_cycles/n_rounds));
-    printf("send time (ms) %f\n", Time::cycles_to_ms(write_cycles/n_rounds));
-    printf("recv time (ms) %f\n", Time::cycles_to_ms(read_cycles/n_rounds));
+    printf("[Client] total time (ms) %f\n", Time::cycles_to_ms(total_cycles));
+    printf("[Client] per req time (ms) %f\n", Time::cycles_to_ms(total_cycles/n_rounds));
+    printf("[Client] send time (ms) %f\n", Time::cycles_to_ms(write_cycles/n_rounds));
+    printf("[Client] recv time (ms) %f\n", Time::cycles_to_ms(read_cycles/n_rounds));
     
     ::close(sock);
 
