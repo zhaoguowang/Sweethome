@@ -10,6 +10,26 @@
 const char* local_addr = "216.165.108.106:1393";
 // const char* local_addr = "127.0.0.1:1393";
 
+#define L1_Cache_Size (32*1024)
+#define L2_Cache_Size (256*1024)
+
+int flush_cache(uint32_t size)
+{
+   int8_t *cache = new int8_t[size];
+   for(int i = 0; i < size; i ++) {
+        cache[i] = i;
+   }
+
+   int res = 0;
+   for(int i = 0; i < size; i ++) {
+        res += cache[i];
+   }
+
+   delete[] cache;
+
+   return res;
+}
+
 
 bool start_server(int n_rounds, int work_load)
 {
@@ -40,6 +60,7 @@ bool start_server(int n_rounds, int work_load)
         
         read_cycles += Time::read_tsc() - r_start;
 
+        flush_cache(L2_Cache_Size);
         uint64_t w_start = Time::read_tsc();
 
         int ws = ::write(clnt, data, work_load);
