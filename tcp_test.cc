@@ -106,6 +106,44 @@ bool start_server(int n_rounds, int work_load)
 }
 
 
+int set_nonblocking(int sock_fd, bool nonblocking) {
+
+    int ret = fcntl(sock_fd, F_GETFL, 0);
+    if (ret != -1) {
+        if (nonblocking) {
+            ret = fcntl(sock_fd, F_SETFL, ret | O_NONBLOCK);
+
+            printf("Create nonblocking write on sock %d\n", sock_fd);
+        } else {
+            ret = fcntl(sock_fd, F_SETFL, ret & ~O_NONBLOCK);
+        }
+    }
+    return ret;
+}
+
+int write_all(int sock_fd, const void* buf, size_t nbyte) {
+    size_t write_cnt = 0;
+    const char* cbuf = reinterpret_cast<const char*>(buf);
+    while (write_cnt < nbyte) {
+        int cnt;
+        while ((cnt = ::write(sock_fd,
+                              cbuf + write_cnt,
+                              nbyte - write_cnt)) == -1 && errno == EINTR) {
+            // Retry if interrupted by a signal
+        }
+        if (cnt <= 0) {
+            if (write_cnt == 0) {
+                return cnt;
+            } else {
+                return write_cnt;
+            }
+        }
+        write_cnt += cnt;
+    }
+    return write_cnt;
+}
+
+
 
 bool start_client(int n_rounds, int work_load)
 {
@@ -116,6 +154,8 @@ bool start_client(int n_rounds, int work_load)
     do {
         sock = msg::socket_utils::tcp_connect(local_addr);
     } while(sock < 0);
+
+    set_nonblocking(sock ,true);
 
     printf("[Client] Listen On Sock %d\n", sock);
 
@@ -135,7 +175,7 @@ bool start_client(int n_rounds, int work_load)
 
         uint64_t w_start = Time::read_tsc();
 
-        int ws = ::write(sock, data, work_load);
+        int ws = write_all(sock, data, work_load);
 
         write_cycles += Time::read_tsc() - w_start;
 
