@@ -7,13 +7,16 @@
 
 #include <string>
 
+#define _GNU_SOURCE
+#include <sched.h>
+
 const char* local_addr = "216.165.108.106:1393";
 // const char* local_addr = "127.0.0.1:1393";
 
 #define L1_Cache_Size (32*1024)
 #define L2_Cache_Size (256*1024)
 
-int flush_cache(uint32_t size)
+inline int flush_cache(uint32_t size)
 {
    int8_t *cache = new int8_t[size];
    for(int i = 0; i < size; i ++) {
@@ -30,9 +33,23 @@ int flush_cache(uint32_t size)
    return res;
 }
 
+inline void bind_cpu(uint cpu)
+{
+  cpu_set_t cpuset;
+  CPU_ZERO(&cpuset);
+  CPU_SET(cpu, &cpuset);
+  int s = sched_setaffinity(0, sizeof(cpu_set_t), &cpuset);
+  if (s != 0)
+      fprintf(stderr, "pthread_setaffinity_np");
+
+}
+
 
 bool start_server(int n_rounds, int work_load)
 {
+
+    bind_cpu(1);
+
     int ss = msg::socket_utils::tcp_listen(local_addr);
     printf("[Server] Listen On Sock %d\n", ss);
     struct sockaddr so_addr;
@@ -60,12 +77,9 @@ bool start_server(int n_rounds, int work_load)
         
         read_cycles += Time::read_tsc() - r_start;
 
-        flush_cache(L2_Cache_Size);
         uint64_t w_start = Time::read_tsc();
 
         int ws = ::write(clnt, data, work_load);
-
-        // fprintf(stderr, "ws %d rs %d\n", ws, rs);
 
         write_cycles += Time::read_tsc() - w_start;
 
@@ -95,6 +109,9 @@ bool start_server(int n_rounds, int work_load)
 
 bool start_client(int n_rounds, int work_load)
 {
+
+    bind_cpu(5);
+
     int sock = 0;
     do {
         sock = msg::socket_utils::tcp_connect(local_addr);
@@ -106,13 +123,16 @@ bool start_client(int n_rounds, int work_load)
     uint64_t write_cycles = 0;
     uint64_t read_cycles = 0;
 
+    char *data = new char[work_load];
+
     uint64_t start = Time::read_tsc();
 
     int r = n_rounds;
-    char *data = new char[work_load];
 
     while(r > 0) {
         
+        flush_cache(L2_Cache_Size);
+
         uint64_t w_start = Time::read_tsc();
 
         int ws = ::write(sock, data, work_load);
